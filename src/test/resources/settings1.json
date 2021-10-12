@@ -1,0 +1,68 @@
+{
+	"deviceList": ["light1", "light2", "light3", "light4", "light5", "pump", "sprayer", "mist", "fan_in", "fan_out"], 
+ 	"timersPerDevice": [ 1, 1, 1, 1, 1, 3, 1, 3, 3, 3 ],
+ 	"rulesets": [
+		{"terrarium": 1, "active": "yes", "from": "10:30", "to": "22:15", "temp_ideal": 26, "rules": [
+				{"value": -25, "actions": [
+						{"device": "fan_in",    "onPeriod": -2, "on_period": -2},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0}
+					]
+				},
+				{"value": 28, "actions": [
+						{"device": "fan_out",   "onPeriod": -2, "on_period": -2},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0}
+					]
+				}
+			]
+		},
+		{"terrarium": 1, "active": "no", "from": "11:00", "to": "23:15", "temp_ideal": 27, "rules": [
+				{"value": -26, "actions": [
+						{"device": "fan_in",    "onPeriod": -2, "on_period": -2},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0}
+					]
+				},
+				{"value": 29, "actions": [
+						{"device": "fan_out",   "onPeriod": -2, "on_period": -2},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0},
+						{"device": "no device", "onPeriod":  0, "on_period":  0}
+					]
+				}
+			]
+		}
+ 	],
+	"sprayerRule": {"delay": 15, "actions": [
+			{"device": "fan_in",    "onPeriod": 900, "on_period": 900},
+			{"device": "fan_out",   "onPeriod": 900, "on_period": 900},
+			{"device": "no device", "onPeriod":   0, "on_period":   0},
+			{"device": "no device", "onPeriod":   0, "on_period":   0}
+		]
+ 	},
+ 	"timers": [
+		{"device": "light1",  "hour_off": 21, "hour_on":  9, "index": 1, "minute_off":  0, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "light2",  "hour_off": 21, "hour_on":  9, "index": 1, "minute_off":  0, "minute_on": 30, "period":  0, "repeat": 1},
+		{"device": "light3",  "hour_off": 22, "hour_on": 10, "index": 1, "minute_off":  0, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "light4",  "hour_off": 22, "hour_on": 10, "index": 1, "minute_off": 15, "minute_on": 15, "period":  0, "repeat": 1},
+	    {"device": "light5",  "hour_off": 22, "hour_on": 11, "index": 1, "minute_off":  0, "minute_on": 15, "period":  0, "repeat": 1},
+		{"device": "pump",    "hour_off": 20, "hour_on": 20, "index": 1, "minute_off": 15, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "pump",    "hour_off":  0, "hour_on":  0, "index": 2, "minute_off":  0, "minute_on":  0, "period":  0, "repeat": 0},
+		{"device": "pump",    "hour_off":  0, "hour_on":  0, "index": 3, "minute_off":  0, "minute_on":  0, "period":  0, "repeat": 0},
+		{"device": "mist",    "hour_off":  6, "hour_on":  6, "index": 1, "minute_off": 45, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "mist",    "hour_off": 23, "hour_on": 22, "index": 2, "minute_off":  0, "minute_on": 15, "period":  0, "repeat": 1},
+		{"device": "mist",    "hour_off":  0, "hour_on":  0, "index": 3, "minute_off":  0, "minute_on":  0, "period":  0, "repeat": 0},
+		{"device": "sprayer", "hour_off":  0, "hour_on": 12, "index": 1, "minute_off":  0, "minute_on":  0, "period": 30, "repeat": 1},
+		{"device": "fan_in",  "hour_off": 10, "hour_on": 10, "index": 1, "minute_off": 25, "minute_on": 15, "period":  0, "repeat": 1},
+		{"device": "fan_in",  "hour_off": 15, "hour_on": 15, "index": 2, "minute_off": 10, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "fan_in",  "hour_off": 20, "hour_on": 20, "index": 3, "minute_off": 15, "minute_on":  5, "period":  0, "repeat": 1},
+		{"device": "fan_out", "hour_off": 12, "hour_on": 12, "index": 1, "minute_off": 25, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "fan_out", "hour_off": 15, "hour_on": 15, "index": 2, "minute_off": 10, "minute_on":  0, "period":  0, "repeat": 1},
+		{"device": "fan_out", "hour_off": 20, "hour_on": 20, "index": 3, "minute_off": 15, "minute_on":  5, "period":  0, "repeat": 1}
+	]
+ }
+ 

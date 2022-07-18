@@ -31,7 +31,7 @@ public class Sensors {
 	@JsonbTransient	private W1Master w1Master = new W1Master();
 	// Initialize the Temperature sensor
 	@JsonbTransient	private DS18B20 terrarium = new DS18B20(this.w1Master);
-	@JsonbTransient	private DHT22 room = new DHT22(RaspiPin.GPIO_05);
+	@JsonbTransient	private DHT22 room = new DHT22(RaspiPin.GPIO_27);
 
 	public Sensors() {
 		this.clock = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd-MM-y HH:mm"));

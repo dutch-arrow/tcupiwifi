@@ -39,13 +39,10 @@ public class Properties {
 		Terrarium t = Terrarium.getInstance();
 		t.setNow(LocalDateTime.now());
 		t.setTrace(true);
-		// Create the tracefiles
-		Util.createStateTraceFile();
-		Util.createTemperatureTraceFile();
-		Util.traceState(LocalDateTime.now(), "start");
-		Util.traceTemperature(LocalDateTime.now(), "start");
+		Util.traceState(Terrarium.traceFolder, LocalDateTime.now(), "start");
+		Util.traceTemperature(Terrarium.traceFolder, LocalDateTime.now(), "start");
 		for (String d : t.deviceList) {
-			Util.traceState(LocalDateTime.now(), "%s %s", d, t.isDeviceOn(d) ? "1" : "0");
+			Util.traceState(Terrarium.traceFolder, LocalDateTime.now(), "%s %s", d, t.isDeviceOn(d) ? "1" : "0");
 		}
 		return Response.noContent().build();
 	}
@@ -54,8 +51,8 @@ public class Properties {
 	@Path("/trace/off")
 	@Produces("application/json")
 	public Response setTraceOff() {
-		Util.traceState(LocalDateTime.now(), "stop");
-		Util.traceTemperature(LocalDateTime.now(), "stop");
+		Util.traceState(Terrarium.traceFolder, LocalDateTime.now(), "stop");
+		Util.traceTemperature(Terrarium.traceFolder, LocalDateTime.now(), "stop");
 		Terrarium.getInstance().setTrace(false);
 		return Response.noContent().build();
 	}

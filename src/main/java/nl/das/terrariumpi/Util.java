@@ -10,14 +10,21 @@
 package nl.das.terrariumpi;
 
 import java.io.IOException;
+import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import nl.das.terrariumpi.objects.Terrarium;
@@ -27,10 +34,8 @@ import nl.das.terrariumpi.objects.Terrarium;
  */
 public class Util {
 
-	public final static String DTRACEFILE = "tracefile_dev";
-	public final static String TTRACEFILE = "tracefile_temp";
-
-	private static DateTimeFormatter dtfmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+	static DateTimeFormatter dtfmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+	static DateTimeFormatter tffmt = DateTimeFormatter.ofPattern("yyyyMMdd");
 
 
 	public static String cvtPeriodToString(long l) {
@@ -59,36 +64,62 @@ public class Util {
 		return LocalDateTime.ofEpochSecond(epochseconds, 0, ZoneId.systemDefault().getRules().getOffset(Instant.now()));
 	}
 
-	public static void createStateTraceFile(String tracefile) {
-		try {
-			Files.deleteIfExists(Paths.get(tracefile));
-			Files.createFile(Paths.get(tracefile));
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+	public static List<String> listTraceFiles(String folder, String prefix) throws IOException {
+	    List<String> fileList = new ArrayList<>();
+	    Files.walkFileTree(Paths.get(folder), new SimpleFileVisitor<Path>() {
+	        @Override
+	        public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+	            if (!Files.isDirectory(file) && file.getFileName().toString().startsWith(prefix)) {
+	                fileList.add(file.getFileName().toString());
+	            }
+	            return FileVisitResult.CONTINUE;
+	        }
+	    });
+	    Collections.sort(fileList);
+	    return fileList;
 	}
 
-	public static void createStateTraceFile() {
-		createStateTraceFile(DTRACEFILE);
-	}
-
-	public static void createTemperatureTraceFile(String tracefile) {
+	public static String createStateTraceFile(String dir, LocalDateTime now) {
+		// Count the number of tracefiles.
+		// If > Terrarium.maxNrOfTraceDays delete oldest first
+		// If file exists, delete it first
 		try {
-			Files.deleteIfExists(Paths.get(tracefile));
-			Files.createFile(Paths.get(tracefile));
+			List<String> files = listTraceFiles(dir, "state_");
+			if (files.size() == Terrarium.maxNrOfTraceDays) {
+				Files.deleteIfExists(Paths.get(dir + "/" + files.get(0)));
+			}
+			Path p = Paths.get(dir + "/state_" + now.format(tffmt));
+			Files.deleteIfExists(p);
+			Files.createFile(p);
 			TimeUnit.SECONDS.sleep(1);
-		} catch (IOException e) {
+			return p.getFileName().toString();
+		} catch (IOException | InterruptedException e) {
 			e.printStackTrace();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
+			return "";
 		}
 	}
 
-	public static void createTemperatureTraceFile() {
-		createTemperatureTraceFile(TTRACEFILE);
+	public static String createTemperatureTraceFile(String dir, LocalDateTime now) {
+		// Count the number of tracefiles.
+		// If > Terrarium.maxNrOfTraceDays delete oldest first
+		// If file exists, delete it first
+		try {
+			List<String> files = listTraceFiles(dir, "temp_");
+			if (files.size() == Terrarium.maxNrOfTraceDays) {
+				Files.deleteIfExists(Paths.get(dir + "/" + files.get(0)));
+			}
+			Path p = Paths.get(dir + "/temp_" + now.format(tffmt));
+			Files.deleteIfExists(p);
+			Files.createFile(p);
+			TimeUnit.SECONDS.sleep(1);
+			return p.getFileName().toString();
+		} catch (IOException | InterruptedException e) {
+			e.printStackTrace();
+			return "";
+		}
 	}
 
-	public static void traceStateBase(String tracefile, LocalDateTime now, String fmt, Object ...args) {
+	public static void traceState(String tracefile, LocalDateTime now, String fmt, Object ...args) {
 		try {
 			if (Terrarium.getInstance().isTraceOn()) {
 				String nowstr = now.format(dtfmt);
@@ -103,11 +134,8 @@ public class Util {
 			e.printStackTrace();
 		}
 	}
-	public static void traceState(LocalDateTime now, String fmt, Object ...args) {
-		traceStateBase(DTRACEFILE, now, fmt, args);
-	}
 
-	public static void traceTemperatureBase(String tracefile, LocalDateTime now, String fmt, Object ...args) {
+	public static void traceTemperature(String tracefile, LocalDateTime now, String fmt, Object ...args) {
 		try {
 			if (Terrarium.getInstance().isTraceOn()) {
 				String nowstr = now.format(dtfmt);
@@ -121,9 +149,5 @@ public class Util {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-	}
-
-	public static void traceTemperature(LocalDateTime now, String fmt, Object ...args) {
-		traceTemperatureBase(TTRACEFILE, now, fmt, args);
 	}
 }

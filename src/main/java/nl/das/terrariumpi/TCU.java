@@ -15,11 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.pi4j.util.Console;
 
 import nl.das.terrariumpi.hw.LCD;
 import nl.das.terrariumpi.objects.Terrarium;
@@ -28,27 +27,29 @@ import nl.das.terrariumpi.rest.RestServer;
 public class TCU {
 
 	private static Logger log = LoggerFactory.getLogger(TCU.class);
+	private static DateTimeFormatter dtfmt = DateTimeFormatter.ofPattern("HH:mm:ss");
 
 	private static RestServer server;
 
 	public static void main (String[] args) throws InterruptedException {
+		LocalDateTime now = LocalDateTime.now();
+		System.out.println(now.format(dtfmt) + " Start Initialization ...");
+		System.err.println(now.format(dtfmt) + " System started.");
+
 		// Initialize the LCD
 		LCD lcd = new LCD();
 		lcd.init(2, 16);
 		lcd.write(0, "Initialize....");
 
-	    Console console = new Console();
-		// print program title/header
-		console.title("Starting the application");
-		// allow for user to exit program using CTRL-C
-		console.promptForExit();
+		System.out.println(now.format(dtfmt) + " Starting the application");
 		// Initialize and start the webserver
-		server = new RestServer("0.0.0.0", 8080);
+		int portnr = 80;
+		server = new RestServer("0.0.0.0", portnr);
 		server.start();
 		// Retrieve the settings from disk
 		Terrarium terrarium = null;
 		try {
-			String json = Files.readString(Paths.get("settings.json"));
+			String json = new String(Files.readAllBytes(Paths.get("settings.json")));
 			terrarium = Terrarium.getInstance(json);
 		} catch (NoSuchFileException e) {
 			terrarium = Terrarium.getInstance();
@@ -56,21 +57,18 @@ public class TCU {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		LocalDateTime now = LocalDateTime.now();
 		terrarium.setNow(now);
-		// Initially do not trace
-		terrarium.setTrace(false);
 		// Initialize the devices
 		terrarium.initDevices();
 		// Initialize device state
 		terrarium.initDeviceState();
 		// Retrieve the lifecycle values from disk
 		try {
-			String json = Files.readString(Paths.get("lifecycle.txt"));
+			String json = new String(Files.readAllBytes(Paths.get("lifecycle.txt")));
 			String lns[] = json.split("\n");
 			for (String ln : lns) {
 				String lp[] = ln.split("=");
-				Terrarium.getInstance().setDeviceLifecycle(lp[0], Integer.parseInt(lp[1]));
+				terrarium.setDeviceLifecycle(lp[0], Integer.parseInt(lp[1]));
 			}
 		} catch (NoSuchFileException e) {
 		} catch (IOException e) {
@@ -96,43 +94,49 @@ public class TCU {
 		int currentMin = now.getMinute();
 		int currentHour = now.getHour();
 		// Start the loop
-		log.info("Initialization done, start loop");
+		System.out.println(now.format(dtfmt) + " Initialization done, start loop");
 		while (true) {
 			now = LocalDateTime.now();
-			Terrarium.getInstance().setNow(now);
+			terrarium.setNow(now);
 			if (now.getSecond() != currentSec) {
 				currentSec = now.getSecond();
 				// A second has passed
 				// Each second check devices
-				Terrarium.getInstance().checkDevices();
+				terrarium.checkDevices();
 				if (now.getMinute() != currentMin) {
 					currentMin = now.getMinute();
 					// A minute has passed
-//					console.println(LocalDateTime.now().format(fmt) + " A minute has passed");
+//					System.out.println(now.format(dtfmt) + " A minute has passed");
 					// Each minute
 					// - display temperature on LCD line 1
-					Terrarium.getInstance().readSensorValues();
-					tterr = Terrarium.getInstance().getTerrariumTemperature();
-					troom = Terrarium.getInstance().getRoomTemperature();
+					terrarium.readSensorValues();
+					tterr = terrarium.getTerrariumTemperature();
+					troom = terrarium.getRoomTemperature();
 					lcd.displayLine1(troom, tterr);
-					Util.traceTemperature(now, "r=%d t=%d", troom, tterr);
+					if (!terrarium.isTraceOn()) {
+						Util.traceTemperature(Terrarium.traceFolder + "/" +  Terrarium.traceTempFilename, now, "r=%d t=%d", troom, tterr);
+					}
 					// - check timers
-					Terrarium.getInstance().checkTimers();
+					terrarium.checkTimers();
 					// - check sprayerrule
-					Terrarium.getInstance().checkSprayerRule();
+					terrarium.checkSprayerRule();
 					// - check rulesets
-					Terrarium.getInstance().checkRules();
+					terrarium.checkRules();
 					// Check if tracing should be switched off (max 1 day)
-					Terrarium.getInstance().checkTrace();
+					terrarium.checkTrace();
 				}
 				if (now.getHour() != currentHour) {
-					currentHour = now.getHour();
 					// An hour has passed
-//					console.println(LocalDateTime.now().format(fmt) + " An hour has passed");
+//					System.out.println(now.format(dtfmt) + " An hour has passed");
+					currentHour = now.getHour();
+					if (!terrarium.isTraceOn()) {
+						// Start trace on the whole hour
+						terrarium.setTrace(true);
+					}
 					// Each hour
 					// - decrement lifecycle value
-					Terrarium.getInstance().decreaseLifetime(1);
-					Terrarium.getInstance().saveLifecycleCounters();
+					terrarium.decreaseLifetime(1);
+					terrarium.saveLifecycleCounters();
 				}
 			}
 		}

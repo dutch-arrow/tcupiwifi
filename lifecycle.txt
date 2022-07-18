@@ -1,1 +1,1 @@
-light5=4398
+uvlight=4398

@@ -15,31 +15,41 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.pi4j.io.gpio.Pin;
 import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
 import jakarta.json.bind.Jsonb;
 import jakarta.json.bind.JsonbBuilder;
+import jakarta.json.bind.JsonbConfig;
 import jakarta.json.bind.annotation.JsonbTransient;
 import nl.das.terrariumpi.Util;
 
 /**
- * Pi 2B  - pi4j pin (device)
+ * Pi 3B+ - pi4j pin (device)
  * ==========================
  * pin 11 - GPIO-00  (light1)
  * pin 12 - GPIO-01  (light2)
  * pin 13 - GPIO-02  (light3)
  * pin 15 - GPIO-03  (light4)
- * pin 16 - GPIO-04  (light5)
+ * pin 16 - GPIO-04  (uvlight)
+ * pin 18 - GPIO-05  (light6)
  * pin 29 - GPIO-21  (pump)
  * pin 31 - GPIO-22  (sprayer)
  * pin 33 - GPIO-23  (mist)
  * pin 35 - GPIO-24  (fan_in)
  * pin 37 - GPIO-25  (fan_out)
+ * pin 36 - GPIO-27  (temperature external DHT22)
+ * pin  7 - GPIO-04  (temperature internal DS18B20)
+ * pin  3 - GPIO-08  (LCD SDA)
+ * pin  5 - GPIO-09  (LCD SCL)
  *
  */
 public class Terrarium {
@@ -49,32 +59,55 @@ public class Terrarium {
 
 	private static DateTimeFormatter dtfmt = DateTimeFormatter.ofPattern("HH:mm:ss");
 
-	public static final int NR_OF_DEVICES = 10;
+	public static int NR_OF_DEVICES = 11;
 	public static final int NR_OF_RULESETS = 2;
 	public static final int NR_OF_RULES = 2;
 	public static final int NR_OF_ACTIONS_PER_RULE = 2;
 	public static final int NR_OF_ACTIONS_PER_SPRAYERRULE = 4;
 	public static final int ONPERIOD_ENDLESS = -1;
-	public static final int ONPERIOD_UNTILL_IDEAL = -2;
-	public static final long ONPERIOD_OFF = 0L;
+	public static final int ONPERIOD_UNTIL_IDEAL = -2;
+	public static final int ONPERIOD_OFF = 0;
+	public static int maxNrOfTraceDays = 30;
 
-	public String[] deviceList   = {"light1", "light2", "light3", "light4", "light5", "pump", "sprayer", "mist", "fan_in", "fan_out"};
-	public int[] timersPerDevice = {1,         1,        1,        1,        1,        3,      1,         3,      3,        3       };
+	public String[] deviceList   = {"light1", "light2", "light3", "light4", "uvlight", "light6", "pump", "sprayer", "mist", "fan_in", "fan_out"};
+	public int[] timersPerDevice = {1,         1,        1,        1,        1,         1,        3,      5,         3,      3,        3       };
 	public Timer[] timers;
 	public Ruleset[] rulesets = new Ruleset[NR_OF_RULESETS];
 	public SprayerRule sprayerRule;
+	@JsonbTransient private static Map<String, Pin> devicePin;
 	@JsonbTransient private boolean sprayerRuleActive = false;
 	@JsonbTransient private long sprayerRuleDelayEndtime;
-	@JsonbTransient	private Device[] devices = new Device[NR_OF_DEVICES];
-	@JsonbTransient private DeviceState[] devStates = new DeviceState[NR_OF_DEVICES];
+	@JsonbTransient	private static Device[] devices = new Device[NR_OF_DEVICES];
+	@JsonbTransient private static DeviceState[] devStates = new DeviceState[NR_OF_DEVICES];
 	@JsonbTransient private boolean test = false;
 	@JsonbTransient private Sensors sensors = new Sensors();
 	@JsonbTransient private LocalDateTime now;
-	@JsonbTransient private boolean traceOn = true;
+	@JsonbTransient private boolean traceOn = false;
 	@JsonbTransient private long traceStartTime;
-	@JsonbTransient private int[] ruleActiveForDevice = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-
+	@JsonbTransient private static int[] ruleActiveForDevice;
+	@JsonbTransient private boolean fan_in_state = false;
+	@JsonbTransient private boolean fan_out_state = false;
 	@JsonbTransient private static Terrarium instance = null;
+
+	@JsonbTransient public static String traceFolder = "tracefiles";
+	@JsonbTransient public static String traceStateFilename;
+	@JsonbTransient public static String traceTempFilename;
+
+    static {
+        Map<String, Pin> aMap = new HashMap<>();
+        aMap.put("light1",  RaspiPin.GPIO_00);
+        aMap.put("light2",  RaspiPin.GPIO_01);
+        aMap.put("light3",  RaspiPin.GPIO_02);
+        aMap.put("light4",  RaspiPin.GPIO_03);
+        aMap.put("uvlight", RaspiPin.GPIO_04);
+        aMap.put("light6",  RaspiPin.GPIO_05);
+        aMap.put("pump",    RaspiPin.GPIO_21);
+        aMap.put("sprayer", RaspiPin.GPIO_22);
+        aMap.put("mist",    RaspiPin.GPIO_23);
+        aMap.put("fan_in",  RaspiPin.GPIO_24);
+        aMap.put("fan_out", RaspiPin.GPIO_25);
+        devicePin = Collections.unmodifiableMap(aMap);
+    };
 
 	public Terrarium() { }
 
@@ -90,7 +123,13 @@ public class Terrarium {
 	public static Terrarium getInstance(String json) {
 		Jsonb jsonb = JsonbBuilder.create();
 		instance = jsonb.fromJson(json, Terrarium.class);
-
+		NR_OF_DEVICES = instance.deviceList.length;
+		devices = new Device[NR_OF_DEVICES];
+		devStates = new DeviceState[NR_OF_DEVICES];
+		ruleActiveForDevice = new int[NR_OF_DEVICES];
+		for (int i = 0; i < NR_OF_DEVICES; i++) {
+			ruleActiveForDevice[i] = -1;
+		}
 		return instance;
 	}
 
@@ -149,38 +188,36 @@ public class Terrarium {
 	@JsonbTransient
 	public void initDevices() {
 		// Initialize devices
-		this.devices[0] = new Device(this.deviceList[0], RaspiPin.GPIO_00, PinState.HIGH);
-		this.devices[1] = new Device(this.deviceList[1], RaspiPin.GPIO_01, PinState.HIGH);
-		this.devices[2] = new Device(this.deviceList[2], RaspiPin.GPIO_02, PinState.HIGH);
-		this.devices[3] = new Device(this.deviceList[3], RaspiPin.GPIO_03, PinState.HIGH);
-		this.devices[4] = new Device(this.deviceList[4], RaspiPin.GPIO_04, PinState.HIGH, true);
-		this.devices[5] = new Device(this.deviceList[5], RaspiPin.GPIO_21, PinState.LOW);
-		this.devices[6] = new Device(this.deviceList[6], RaspiPin.GPIO_22, PinState.LOW);
-		this.devices[7] = new Device(this.deviceList[7], RaspiPin.GPIO_23, PinState.LOW);
-		this.devices[8] = new Device(this.deviceList[8], RaspiPin.GPIO_24, PinState.LOW);
-		this.devices[9] = new Device(this.deviceList[9], RaspiPin.GPIO_25, PinState.LOW);
+		for (int i = 0; i < this.deviceList.length; i++) {
+			if (this.deviceList[i].equalsIgnoreCase("uvlight")) {
+				this.devices[i] = new Device(this.deviceList[i], devicePin.get(this.deviceList[i]), PinState.LOW, true);
+			} else {
+				this.devices[i] = new Device(this.deviceList[i], devicePin.get(this.deviceList[i]), PinState.LOW);
+			}
+		}
 	}
 
 	@JsonbTransient
 	public void initMockDevices() {
 		// Initialize devices
-		this.devices[0] = new Device(this.deviceList[0], false);
-		this.devices[1] = new Device(this.deviceList[1], false);
-		this.devices[2] = new Device(this.deviceList[2], false);
-		this.devices[3] = new Device(this.deviceList[3], false);
-		this.devices[4] = new Device(this.deviceList[4], true);
-		this.devices[5] = new Device(this.deviceList[5], false);
-		this.devices[6] = new Device(this.deviceList[6], false);
-		this.devices[7] = new Device(this.deviceList[7], false);
-		this.devices[8] = new Device(this.deviceList[8], false);
-		this.devices[9] = new Device(this.deviceList[9], false);
+		this.devices[ 0] = new Device(this.deviceList[ 0], false);
+		this.devices[ 1] = new Device(this.deviceList[ 1], false);
+		this.devices[ 2] = new Device(this.deviceList[ 2], false);
+		this.devices[ 3] = new Device(this.deviceList[ 3], false);
+		this.devices[ 4] = new Device(this.deviceList[ 4], true);
+		this.devices[ 5] = new Device(this.deviceList[ 5], false);
+		this.devices[ 6] = new Device(this.deviceList[ 6], false);
+		this.devices[ 7] = new Device(this.deviceList[ 7], false);
+		this.devices[ 8] = new Device(this.deviceList[ 8], false);
+		this.devices[ 9] = new Device(this.deviceList[ 9], false);
+		this.devices[10] = new Device(this.deviceList[10], false);
 	}
 
 
 	@JsonbTransient
 	public String getProperties() {
 		String json = "";
-		json += "{\"tcu\":\"TERRARIUM\",\"nr_of_timers\":" + this.timers.length + ",\"nr_of_programs\":" + NR_OF_RULESETS + ",";
+		json += "{\"tcu\":\"TERRARIUMPI\",\"nr_of_timers\":" + this.timers.length + ",\"nr_of_programs\":" + NR_OF_RULESETS + ",";
 		json += "\"devices\": [";
 		for (int i = 0; i < NR_OF_DEVICES; i++) {
 			json += "{\"device\":\"" + this.devices[i].getName() + "\", \"nr_of_timers\":" + this.timersPerDevice[i] + ", \"lc_counted\":";
@@ -195,7 +232,7 @@ public class Terrarium {
 
 	@JsonbTransient
 	public void saveSettings() {
-		Jsonb jsonb = JsonbBuilder.create();
+		Jsonb jsonb = JsonbBuilder.create(new JsonbConfig().withFormatting(true));
 		try {
 			Files.deleteIfExists(Paths.get("settings.json"));
 			Files.writeString(Paths.get("settings.json"), jsonb.toJson(this), StandardOpenOption.CREATE_NEW);
@@ -228,9 +265,20 @@ public class Terrarium {
 
 	@JsonbTransient
 	public void setTrace(boolean on) {
-		this.traceOn = on;
 		if (on) {
+			this.traceOn = on;
 			this.traceStartTime = Util.now(this.now);
+			traceStateFilename = Util.createStateTraceFile(traceFolder, this.now);
+			traceTempFilename  = Util.createTemperatureTraceFile(traceFolder, this.now);
+			Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "start");
+			Util.traceTemperature(traceFolder + "/" + traceTempFilename, this.now, "start");
+			for (String d : this.deviceList) {
+				Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s %s", d, isDeviceOn(d) ? "1" : "0");
+			}
+		} else if (this.traceOn) {
+			Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "stop");
+			Util.traceTemperature(traceFolder + "/" + traceTempFilename, this.now, "stop");
+			this.traceOn = on;
 		}
 	}
 
@@ -242,10 +290,9 @@ public class Terrarium {
 	@JsonbTransient
 	public void checkTrace () {
 		// Max one day of tracing
-		if (Util.now(this.now)  > (this.traceStartTime + (1440 * 60))) {
-			Util.traceState(this.now, "stop");
-			Util.traceTemperature(this.now, "stop");
+		if ((Util.now(this.now)  >= (this.traceStartTime + (1440 * 60))) && isTraceOn()) {
 			setTrace(false);
+			setTrace(true);
 		}
 
 	}
@@ -329,6 +376,7 @@ public class Terrarium {
 		}
 	}
 
+	@JsonbTransient
 	public void initTimers(LocalDateTime now) {
 		for (Timer t : this.timers) {
 			int timerMinutesOn = (t.getHour_on() * 60) + t.getMinute_on();
@@ -361,7 +409,9 @@ public class Terrarium {
 						if (!isDeviceOn(t.getDevice())) {
 							setDeviceOn(t.getDevice(), -1L);
 							if (t.getDevice().equalsIgnoreCase("mist")) {
+								this.fan_in_state = isDeviceOn("fan_in");
 								setDeviceOff("fan_in");
+								this.fan_out_state = isDeviceOn("fan_out");
 								setDeviceOff("fan_out");
 								// and deactivate the rules for fan_in and fan_out and switch them off
 								setRuleActive("fan_in", 0);
@@ -375,7 +425,19 @@ public class Terrarium {
 							}
 						}
 					} else if ((timerMinutesOff != 0) && (curMinutes == timerMinutesOff)) {
-						setDeviceOff(t.getDevice());
+						if (t.getDevice().equalsIgnoreCase("mist")) {
+							setDeviceOff(t.getDevice());
+							if (this.fan_in_state) {
+								setDeviceOn("fan_in", -1L);
+								this.fan_in_state = false;
+							}
+							if (this.fan_out_state) {
+								setDeviceOn("fan_out", -1L);
+								this.fan_out_state = false;
+							}
+						} else {
+							setDeviceOff(t.getDevice());
+						}
 						// Make the rules of all relevant devices active again
 						for (int i = 0; i < this.ruleActiveForDevice.length; i++) {
 							if (getRuleActive(this.devices[i].getName()) == 0) {
@@ -394,6 +456,9 @@ public class Terrarium {
 						if (t.getDevice().equalsIgnoreCase("sprayer")) {
 							// If device is "sprayer" then activate sprayer rule
 							this.sprayerRuleActive = true;
+							// Set sprayerRuleDelayEndtime = start time in minutes + delay in minutes
+							this.sprayerRuleDelayEndtime = (t.getHour_on() * 60) + t.getMinute_on();
+							this.sprayerRuleDelayEndtime += this.sprayerRule.getDelay();
 							// and deactivate the rules for fan_in and fan_out and switch them off
 							setRuleActive("fan_in", 0);
 							setDeviceOff("fan_in");
@@ -404,15 +469,6 @@ public class Terrarium {
 				}
 			}
 		}
-	}
-
-	private Timer getSprayerTimer() {
-		for (int i = 0; i < this.timers.length; i++) {
-			if (this.timers[i].getDevice().equalsIgnoreCase("sprayer") && (this.timers[i].getIndex() == 1)) {
-				return this.timers[i];
-			}
-		}
-		return null;
 	}
 
 	/**************************************************** Ruleset ******************************************************/
@@ -456,10 +512,6 @@ public class Terrarium {
 				setRuleActive(a.getDevice(), 1);
 			}
 		}
-		// Set sprayerRuleDelayEndtime = start time in minutes + delay in minutes
-		Timer t = getSprayerTimer();
-		this.sprayerRuleDelayEndtime = (t.getHour_on() * 60) + t.getMinute_off();
-		this.sprayerRuleDelayEndtime += this.sprayerRule.getDelay();
 	}
 
 	@JsonbTransient
@@ -468,37 +520,41 @@ public class Terrarium {
 	 * These need to be executed every minute.
 	 */
 	public void checkRules() {
-		for (Ruleset rs : this.rulesets) {
-			if (rs.active(this.now)) {
-				//
-				for (Rule r : rs.getRules()) {
-					if ((r.getValue() < 0) && (getTerrariumTemperature() < -r.getValue())) {
-						for (Action a : r.getActions()) {
-							executeAction(a);
-						}
-					} else if ((r.getValue() < 0) && (getTerrariumTemperature() >= rs.getIdealTemp())) {
-						for (Action a : r.getActions()) {
-							if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)) {
-								setDeviceOff(a.getDevice());
+		if (!isSprayerRuleActive()) {
+			for (Ruleset rs : this.rulesets) {
+				if (rs.active(this.now)) {
+					//
+					for (Rule r : rs.getRules()) {
+						if ((r.getValue() < 0) && (getTerrariumTemperature() < -r.getValue())) {
+							for (Action a : r.getActions()) {
+								executeAction(a);
 							}
-						}
-					} else if ((r.getValue() > 0) && (getTerrariumTemperature() > r.getValue())) {
-						for (Action a : r.getActions()) {
-							executeAction(a);
-						}
-					} else if ((r.getValue() > 0) && (getTerrariumTemperature() <= rs.getIdealTemp())) {
-						for (Action a : r.getActions()) {
-							if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)) {
-								setDeviceOff(a.getDevice());
+						} else if ((r.getValue() < 0) && (getTerrariumTemperature() >= rs.getIdealTemp())) {
+							for (Action a : r.getActions()) {
+								if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)
+										&& (this.devStates[getDeviceIndex(a.getDevice())].getOnPeriod() != -1L)) {
+									setDeviceOff(a.getDevice());
+								}
+							}
+						} else if ((r.getValue() > 0) && (getTerrariumTemperature() > r.getValue())) {
+							for (Action a : r.getActions()) {
+								executeAction(a);
+							}
+						} else if ((r.getValue() > 0) && (getTerrariumTemperature() <= rs.getIdealTemp())) {
+							for (Action a : r.getActions()) {
+								if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)
+										&& (this.devStates[getDeviceIndex(a.getDevice())].getOnPeriod() != -1L)) {
+									setDeviceOff(a.getDevice());
+								}
 							}
 						}
 					}
-				}
-			} else if (rs.getActive().equalsIgnoreCase("yes")) {
-				for (Rule r : rs.getRules()) {
-					for (Action a : r.getActions()) {
-						if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)) {
-							setDeviceOff(a.getDevice());
+				} else if (rs.getActive().equalsIgnoreCase("yes")) {
+					for (Rule r : rs.getRules()) {
+						for (Action a : r.getActions()) {
+							if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)) {
+								setDeviceOff(a.getDevice());
+							}
 						}
 					}
 				}
@@ -508,7 +564,7 @@ public class Terrarium {
 
 	@JsonbTransient
 	private void executeAction(Action a) {
-		if (!a.getDevice().equalsIgnoreCase("no device") && (getRuleActive(a.getDevice()) == 1)) {
+		if (!a.getDevice().equalsIgnoreCase("no device") && ((getRuleActive(a.getDevice()) == 1) || isSprayerRuleActive())) {
 			long endtime = 0;
 			if (a.getOnPeriod() > 0) {
 				// onPeriod is seconds (max 3600)
@@ -534,10 +590,6 @@ public class Terrarium {
 				for (Action a : this.sprayerRule.getActions()) {
 					if (!a.getDevice().equalsIgnoreCase("no device")) {
 						executeAction(a);
-						// Make the temperature rule temporarily inactive
-						if (getRuleActive(a.getDevice()) == 1) {
-							setRuleActive(a.getDevice(), 0);
-						}
 					}
 				}
 				this.sprayerRuleActive = false;
@@ -545,6 +597,7 @@ public class Terrarium {
 		}
 	}
 
+	@JsonbTransient
 	public boolean isSprayerRuleActive() {
 		return this.sprayerRuleActive;
 	}
@@ -574,9 +627,9 @@ public class Terrarium {
 		this.devStates[getDeviceIndex(device)].setOnPeriod(endtime);
 		if (endtime > 0L) {
 			String dt = Util.ofEpochSecond(endtime).format(dtfmt);
-			Util.traceState(this.now, "%s 1 %s", device, dt);
+			Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s 1 %s", device, dt);
 		} else {
-			Util.traceState(this.now, "%s 1 %d", device, endtime);
+			Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s 1 %d", device, endtime);
 		}
 	}
 
@@ -584,7 +637,7 @@ public class Terrarium {
 	public void setDeviceOff(String device) {
 		this.devices[getDeviceIndex(device)].switchOff();
 		this.devStates[getDeviceIndex(device)].setOnPeriod(ONPERIOD_OFF);
-		Util.traceState(this.now, "%s 0", device);
+		Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s 0", device);
 	}
 
 	@JsonbTransient
@@ -626,7 +679,7 @@ public class Terrarium {
 	}
 
 	@JsonbTransient
-	public int getDeviceIndex (String device) {
+	public int getDeviceIndex(String device) {
 		int ix = -1;
 		for (int i = 0; i < NR_OF_DEVICES; i++) {
 			if (this.deviceList[i].equalsIgnoreCase(device)) {
@@ -648,10 +701,12 @@ public class Terrarium {
 				// Device has an end time defined
 				if (Util.now(this.now) >= d.getOnPeriod()) {
 					setDeviceOff(d.getName());
-					// Make the rules of all relevant devices active again
-					for (int i = 0; i < this.ruleActiveForDevice.length; i++) {
-						if (getRuleActive(this.devices[i].getName()) == 0) {
-							setRuleActive(this.devices[i].getName(), 1);
+					if (!isSprayerRuleActive()) {
+						// Make the rules of all relevant devices active again
+						for (int i = 0; i < this.ruleActiveForDevice.length; i++) {
+							if (getRuleActive(this.devices[i].getName()) == 0) {
+								setRuleActive(this.devices[i].getName(), 1);
+							}
 						}
 					}
 				}

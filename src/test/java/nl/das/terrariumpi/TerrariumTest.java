@@ -34,7 +34,6 @@ import org.skyscreamer.jsonassert.JSONAssert;
 
 import jakarta.json.bind.Jsonb;
 import jakarta.json.bind.JsonbBuilder;
-import nl.das.terrariumpi.Util;
 import nl.das.terrariumpi.objects.Terrarium;
 
 /**
@@ -94,14 +93,14 @@ public class TerrariumTest {
 
 		// Initialize file content
 		Files.deleteIfExists(Paths.get("lifecycle.txt"));
-		Files.writeString(Paths.get("lifecycle.txt"), "light5=4400", StandardOpenOption.CREATE_NEW);
+		Files.writeString(Paths.get("lifecycle.txt"), "uvlight=4400", StandardOpenOption.CREATE_NEW);
 
 		// Retrieve the lifecycle values from disk
 		try {
 			String lcdata = Files.readString(Paths.get("lifecycle.txt"));
 			String lns[] = lcdata.split("\n");
 			assertEquals(lns.length, 1);
-			assertEquals(lns[0], "light5=4400");
+			assertEquals(lns[0], "uvlight=4400");
 			for (String ln : lns) {
 				String lp[] = ln.split("=");
 				terrarium.setDeviceLifecycle(lp[0], Integer.parseInt(lp[1]));
@@ -110,16 +109,16 @@ public class TerrariumTest {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		assertEquals(terrarium.getDeviceStates()[terrarium.getDeviceIndex("light5")].getLifetime(), 4400);
+		assertEquals(terrarium.getDeviceStates()[terrarium.getDeviceIndex("uvlight")].getLifetime(), 4400);
 
 		terrarium.decreaseLifetime(2);
-		assertEquals(terrarium.getDeviceStates()[terrarium.getDeviceIndex("light5")].getLifetime(), 4398);
+		assertEquals(terrarium.getDeviceStates()[terrarium.getDeviceIndex("uvlight")].getLifetime(), 4398);
 		// Retrieve the lifecycle values again from disk
 		try {
 			String lcdata = Files.readString(Paths.get("lifecycle.txt"));
 			String lns[] = lcdata.split("\n");
 			assertEquals(lns.length, 1);
-			assertEquals(lns[0], "light5=4398");
+			assertEquals(lns[0], "uvlight=4398");
 			for (String ln : lns) {
 				String lp[] = ln.split("=");
 				terrarium.setDeviceLifecycle(lp[0], Integer.parseInt(lp[1]));

@@ -11,11 +11,15 @@ package nl.das.terrariumpi.rest;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import nl.das.terrariumpi.Util;
+import nl.das.terrariumpi.objects.Terrarium;
 
 /**
  *
@@ -25,11 +29,37 @@ public class History {
 
 	@GET
 	@Path("/temperature")
+	@Produces("application/json")
+	public List<String> getTempTracefiles() {
+		List<String> files = new ArrayList<>();
+		try {
+			files = Util.listTraceFiles(Terrarium.traceFolder, "temp_");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return files;
+	}
+
+	@GET
+	@Path("/state")
+	@Produces("application/json")
+	public List<String> getStateTracefiles() {
+		List<String> files = new ArrayList<>();
+		try {
+			files = Util.listTraceFiles(Terrarium.traceFolder, "state_");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return files;
+	}
+
+	@GET
+	@Path("/temperature/{fname}")
 	@Produces("text/plain")
-	public String getTemperatureFile () {
+	public String getTemperatureFile (@PathParam("fname") String fname) {
 		String content = "";
 		try {
-			content = Files.readString(Paths.get(Util.TTRACEFILE));
+			content = Files.readString(Paths.get(Terrarium.traceFolder + "/" + fname));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -37,12 +67,12 @@ public class History {
 	}
 
 	@GET
-	@Path("/state")
+	@Path("/state/{fname}")
 	@Produces("text/plain")
-	public String getStateFile () {
+	public String getStateFile (@PathParam("fname") String fname) {
 		String content = "";
 		try {
-			content = Files.readString(Paths.get(Util.DTRACEFILE));
+			content = Files.readString(Paths.get(Terrarium.traceFolder + "/" + fname));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}

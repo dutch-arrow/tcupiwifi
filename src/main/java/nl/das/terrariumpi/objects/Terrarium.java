@@ -190,9 +190,9 @@ public class Terrarium {
 		// Initialize devices
 		for (int i = 0; i < this.deviceList.length; i++) {
 			if (this.deviceList[i].equalsIgnoreCase("uvlight")) {
-				this.devices[i] = new Device(this.deviceList[i], devicePin.get(this.deviceList[i]), PinState.LOW, true);
+				Terrarium.devices[i] = new Device(this.deviceList[i], devicePin.get(this.deviceList[i]), PinState.LOW, true);
 			} else {
-				this.devices[i] = new Device(this.deviceList[i], devicePin.get(this.deviceList[i]), PinState.LOW);
+				Terrarium.devices[i] = new Device(this.deviceList[i], devicePin.get(this.deviceList[i]), PinState.LOW);
 			}
 		}
 	}
@@ -200,17 +200,17 @@ public class Terrarium {
 	@JsonbTransient
 	public void initMockDevices() {
 		// Initialize devices
-		this.devices[ 0] = new Device(this.deviceList[ 0], false);
-		this.devices[ 1] = new Device(this.deviceList[ 1], false);
-		this.devices[ 2] = new Device(this.deviceList[ 2], false);
-		this.devices[ 3] = new Device(this.deviceList[ 3], false);
-		this.devices[ 4] = new Device(this.deviceList[ 4], true);
-		this.devices[ 5] = new Device(this.deviceList[ 5], false);
-		this.devices[ 6] = new Device(this.deviceList[ 6], false);
-		this.devices[ 7] = new Device(this.deviceList[ 7], false);
-		this.devices[ 8] = new Device(this.deviceList[ 8], false);
-		this.devices[ 9] = new Device(this.deviceList[ 9], false);
-		this.devices[10] = new Device(this.deviceList[10], false);
+		Terrarium.devices[ 0] = new Device(this.deviceList[ 0], false);
+		Terrarium.devices[ 1] = new Device(this.deviceList[ 1], false);
+		Terrarium.devices[ 2] = new Device(this.deviceList[ 2], false);
+		Terrarium.devices[ 3] = new Device(this.deviceList[ 3], false);
+		Terrarium.devices[ 4] = new Device(this.deviceList[ 4], true);
+		Terrarium.devices[ 5] = new Device(this.deviceList[ 5], false);
+		Terrarium.devices[ 6] = new Device(this.deviceList[ 6], false);
+		Terrarium.devices[ 7] = new Device(this.deviceList[ 7], false);
+		Terrarium.devices[ 8] = new Device(this.deviceList[ 8], false);
+		Terrarium.devices[ 9] = new Device(this.deviceList[ 9], false);
+		Terrarium.devices[10] = new Device(this.deviceList[10], false);
 	}
 
 
@@ -220,8 +220,8 @@ public class Terrarium {
 		json += "{\"tcu\":\"TERRARIUMPI\",\"nr_of_timers\":" + this.timers.length + ",\"nr_of_programs\":" + NR_OF_RULESETS + ",";
 		json += "\"devices\": [";
 		for (int i = 0; i < NR_OF_DEVICES; i++) {
-			json += "{\"device\":\"" + this.devices[i].getName() + "\", \"nr_of_timers\":" + this.timersPerDevice[i] + ", \"lc_counted\":";
-			json += (this.devices[i].hasLifetime() ? "true}" : "false}");
+			json += "{\"device\":\"" + Terrarium.devices[i].getName() + "\", \"nr_of_timers\":" + this.timersPerDevice[i] + ", \"lc_counted\":";
+			json += (Terrarium.devices[i].hasLifetime() ? "true}" : "false}");
 			if (i != (NR_OF_DEVICES - 1)) {
 				json += ",";
 			}
@@ -247,8 +247,8 @@ public class Terrarium {
 			String json = "";
 			Files.deleteIfExists(Paths.get("lifecycle.txt"));
 			for (int i = 0; i < NR_OF_DEVICES; i++) {
-				if (this.devices[i].hasLifetime()) {
-					json += this.devices[i].getName() + "=" + this.devStates[i].getLifetime() + "\n";
+				if (Terrarium.devices[i].hasLifetime()) {
+					json += Terrarium.devices[i].getName() + "=" + Terrarium.devStates[i].getLifetime() + "\n";
 				}
 			}
 			Files.writeString(Paths.get("lifecycle.txt"), json, StandardOpenOption.CREATE_NEW);
@@ -259,7 +259,7 @@ public class Terrarium {
 
 	@JsonbTransient
 	public void setLifecycleCounter(String device, int value) {
-		this.devStates[getDeviceIndex(device)].setLifetime(value);
+		Terrarium.devStates[getDeviceIndex(device)].setLifetime(value);
 		saveLifecycleCounters();
 	}
 
@@ -406,8 +406,10 @@ public class Terrarium {
 					int timerMinutesOff = (t.getHour_off() * 60) + t.getMinute_off();
 					int curMinutes = (this.now.getHour() * 60) + this.now.getMinute();
 					if (curMinutes == timerMinutesOn) {
+						System.out.println("Timer of device '" + t.getDevice() + "' has is a on/off timer and is " + (isDeviceOn(t.getDevice())? "on" : "off"));
 						if (!isDeviceOn(t.getDevice())) {
 							setDeviceOn(t.getDevice(), -1L);
+							System.out.println("Timer of device '" + t.getDevice() + " is switched " + (isDeviceOn(t.getDevice())? "on" : "off"));
 							if (t.getDevice().equalsIgnoreCase("mist")) {
 								this.fan_in_state = isDeviceOn("fan_in");
 								setDeviceOff("fan_in");
@@ -427,6 +429,7 @@ public class Terrarium {
 					} else if ((timerMinutesOff != 0) && (curMinutes == timerMinutesOff)) {
 						if (t.getDevice().equalsIgnoreCase("mist")) {
 							setDeviceOff(t.getDevice());
+							System.out.println("Timer of device '" + t.getDevice() + " is switched " + (isDeviceOn(t.getDevice())? "on" : "off"));
 							if (this.fan_in_state) {
 								setDeviceOn("fan_in", -1L);
 								this.fan_in_state = false;
@@ -439,9 +442,9 @@ public class Terrarium {
 							setDeviceOff(t.getDevice());
 						}
 						// Make the rules of all relevant devices active again
-						for (int i = 0; i < this.ruleActiveForDevice.length; i++) {
-							if (getRuleActive(this.devices[i].getName()) == 0) {
-								setRuleActive(this.devices[i].getName(), 1);
+						for (int i = 0; i < Terrarium.ruleActiveForDevice.length; i++) {
+							if (getRuleActive(Terrarium.devices[i].getName()) == 0) {
+								setRuleActive(Terrarium.devices[i].getName(), 1);
 							}
 						}
 					}
@@ -450,6 +453,7 @@ public class Terrarium {
 					int curMinutes = (this.now.getHour() * 60) + this.now.getMinute();
 					long endtime = Util.now(this.now) + t.getPeriod();
 					if (curMinutes == timerMinutesOn) {
+						System.out.println("Timer of device '" + t.getDevice() + "' has a period=" + t.getPeriod() + " and is " + (isDeviceOn(t.getDevice())? "on" : "off"));
 						if (!isDeviceOn(t.getDevice())) {
 							setDeviceOn(t.getDevice(), endtime);
 						}
@@ -485,12 +489,12 @@ public class Terrarium {
 
 	@JsonbTransient
 	public int getRuleActive(String device) {
-		return this.ruleActiveForDevice[getDeviceIndex(device)];
+		return Terrarium.ruleActiveForDevice[getDeviceIndex(device)];
 	}
 
 	@JsonbTransient
 	public void setRuleActive(String device, int value) {
-		this.ruleActiveForDevice[getDeviceIndex(device)] = value;
+		Terrarium.ruleActiveForDevice[getDeviceIndex(device)] = value;
 	}
 
 	@JsonbTransient
@@ -532,7 +536,7 @@ public class Terrarium {
 						} else if ((r.getValue() < 0) && (getTerrariumTemperature() >= rs.getIdealTemp())) {
 							for (Action a : r.getActions()) {
 								if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)
-										&& (this.devStates[getDeviceIndex(a.getDevice())].getOnPeriod() != -1L)) {
+										&& (Terrarium.devStates[getDeviceIndex(a.getDevice())].getOnPeriod() != -1L)) {
 									setDeviceOff(a.getDevice());
 								}
 							}
@@ -543,7 +547,7 @@ public class Terrarium {
 						} else if ((r.getValue() > 0) && (getTerrariumTemperature() <= rs.getIdealTemp())) {
 							for (Action a : r.getActions()) {
 								if (!a.getDevice().equalsIgnoreCase("no device") && isDeviceOn(a.getDevice()) && (getRuleActive(a.getDevice()) == 1)
-										&& (this.devStates[getDeviceIndex(a.getDevice())].getOnPeriod() != -1L)) {
+										&& (Terrarium.devStates[getDeviceIndex(a.getDevice())].getOnPeriod() != -1L)) {
 									setDeviceOff(a.getDevice());
 								}
 							}
@@ -608,13 +612,13 @@ public class Terrarium {
 	public void initDeviceState() {
 		// Initialize device states
 		for (int i = 0; i< NR_OF_DEVICES; i++) {
-			this.devStates[i] = new DeviceState(this.deviceList[i]);
+			Terrarium.devStates[i] = new DeviceState(this.deviceList[i]);
 		}
 	}
 
 	@JsonbTransient
 	public boolean isDeviceOn(String device) {
-		return this.devStates[getDeviceIndex(device)].getOnPeriod() != 0L;
+		return Terrarium.devStates[getDeviceIndex(device)].getOnPeriod() != 0L;
 	}
 
 	/**
@@ -623,8 +627,9 @@ public class Terrarium {
 	 */
 	@JsonbTransient
 	public void setDeviceOn(String device, long endtime) {
-		this.devices[getDeviceIndex(device)].switchOn();
-		this.devStates[getDeviceIndex(device)].setOnPeriod(endtime);
+		System.out.println("Device '" + device + " is switched on");
+		Terrarium.devices[getDeviceIndex(device)].switchOn();
+		Terrarium.devStates[getDeviceIndex(device)].setOnPeriod(endtime);
 		if (endtime > 0L) {
 			String dt = Util.ofEpochSecond(endtime).format(dtfmt);
 			Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s 1 %s", device, dt);
@@ -635,31 +640,32 @@ public class Terrarium {
 
 	@JsonbTransient
 	public void setDeviceOff(String device) {
-		this.devices[getDeviceIndex(device)].switchOff();
-		this.devStates[getDeviceIndex(device)].setOnPeriod(ONPERIOD_OFF);
+		System.out.println("Device '" + device + " is switched off");
+		Terrarium.devices[getDeviceIndex(device)].switchOff();
+		Terrarium.devStates[getDeviceIndex(device)].setOnPeriod(ONPERIOD_OFF);
 		Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s 0", device);
 	}
 
 	@JsonbTransient
 	public void setDeviceManualOn(String device) {
-		this.devStates[getDeviceIndex(device)].setManual(true);
+		Terrarium.devStates[getDeviceIndex(device)].setManual(true);
 	}
 
 	@JsonbTransient
 	public void setDeviceManualOff(String device) {
-		this.devStates[getDeviceIndex(device)].setManual(false);
+		Terrarium.devStates[getDeviceIndex(device)].setManual(false);
 	}
 
 	@JsonbTransient
 	public void setDeviceLifecycle(String device, int value) {
-		this.devStates[getDeviceIndex(device)].setLifetime(value);
+		Terrarium.devStates[getDeviceIndex(device)].setLifetime(value);
 	}
 
 	@JsonbTransient
 	public void decreaseLifetime(int nrOfHours) {
-		for (Device d : this.devices) {
+		for (Device d : Terrarium.devices) {
 			if (d.hasLifetime()) {
-				this.devStates[getDeviceIndex(d.getName())].decreaseLifetime(nrOfHours);
+				Terrarium.devStates[getDeviceIndex(d.getName())].decreaseLifetime(nrOfHours);
 				saveLifecycleCounters();
 			}
 		}
@@ -669,7 +675,7 @@ public class Terrarium {
 	public String getState() {
 		String json = "{\"trace\":\"" +  (this.traceOn ? "on" : "off") + "\",\"state\": [";
 		for (int i = 0; i < NR_OF_DEVICES; i++) {
-			json += this.devStates[i].toJson();
+			json += Terrarium.devStates[i].toJson();
 			if (i != (NR_OF_DEVICES - 1)) {
 				json += ",";
 			}
@@ -696,16 +702,16 @@ public class Terrarium {
 	 * This check needs to be done every second since the onPeriod is defined in Epoch-seconds.
 	 */
 	public void checkDevices() {
-		for (DeviceState d : this.devStates) {
+		for (DeviceState d : Terrarium.devStates) {
 			if (d.getOnPeriod() > 0) {
 				// Device has an end time defined
 				if (Util.now(this.now) >= d.getOnPeriod()) {
 					setDeviceOff(d.getName());
 					if (!isSprayerRuleActive()) {
 						// Make the rules of all relevant devices active again
-						for (int i = 0; i < this.ruleActiveForDevice.length; i++) {
-							if (getRuleActive(this.devices[i].getName()) == 0) {
-								setRuleActive(this.devices[i].getName(), 1);
+						for (int i = 0; i < Terrarium.ruleActiveForDevice.length; i++) {
+							if (getRuleActive(Terrarium.devices[i].getName()) == 0) {
+								setRuleActive(Terrarium.devices[i].getName(), 1);
 							}
 						}
 					}
@@ -741,6 +747,6 @@ public class Terrarium {
 	}
 
 	public DeviceState[] getDeviceStates() {
-		return this.devStates;
+		return Terrarium.devStates;
 	}
 }

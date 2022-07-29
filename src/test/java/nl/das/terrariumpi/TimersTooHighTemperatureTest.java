@@ -302,8 +302,8 @@ public class TimersTooHighTemperatureTest {
 			traceTemperature();
 		}
 		{
-			// Time 15:00:00
-			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 2), LocalTime.of(15, 0, 0)));
+			// Time 15:30:00
+			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 1), LocalTime.of(15, 30, 0)));
 			terrarium.checkDevices();
 			terrarium.checkTimers();
 			terrarium.checkSprayerRule();
@@ -319,8 +319,8 @@ public class TimersTooHighTemperatureTest {
 			traceTemperature();
 		}
 		{
-			// Time 15:10:00
-			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 2), LocalTime.of(15, 10, 0)));
+			// Time 15:40:00
+			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 1), LocalTime.of(15, 40, 0)));
 			terrarium.checkDevices();
 			terrarium.checkTimers();
 			terrarium.checkSprayerRule();

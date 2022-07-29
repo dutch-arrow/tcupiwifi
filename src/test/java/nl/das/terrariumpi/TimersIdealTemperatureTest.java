@@ -318,15 +318,15 @@ public class TimersIdealTemperatureTest {
 			traceTemperature();
 		}
 		{
-			// Time 15:00:00
-			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 1), LocalTime.of(15, 0, 0)));
+			// Time 15:30:00
+			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 1), LocalTime.of(15, 30, 0)));
 			terrarium.checkDevices();
 			terrarium.checkTimers();
 			terrarium.checkSprayerRule();
 			terrarium.checkRules();
 			//light1, light2, light3, light4, fan_in and fan_out should be switched on
 			//                 light1, light2, light3, light4, uvlight, light6, pump, sprayer, mist, fan_in, fan_out
-			long[] expected = {-1,     -1,     -1,     -1,     -1,      0,      0,    0,       0,    -1,     -1};
+			long[] expected = {-1,     -1,     -1,     -1,     -1,      0,      0,    0,       0,    -1,     0};
 			checkDeviceState(expected);
 			// ... and the rules for fan_in and fan_out should be inactive
 			//                 light1, light2, light3, light4, uvlight, light6, pump, sprayer, mist, fan_in, fan_out
@@ -335,8 +335,8 @@ public class TimersIdealTemperatureTest {
 			traceTemperature();
 		}
 		{
-			// Time 15:10:00
-			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 1), LocalTime.of(15, 10, 0)));
+			// Time 15:40:00
+			terrarium.setNow(LocalDateTime.of(LocalDate.of(2021, 8, 1), LocalTime.of(15, 40, 0)));
 			terrarium.checkDevices();
 			terrarium.checkTimers();
 			terrarium.checkSprayerRule();

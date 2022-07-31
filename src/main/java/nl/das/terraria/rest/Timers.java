@@ -17,7 +17,6 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Response;
 import nl.das.terraria.objects.Terrarium;
-import nl.das.terraria.objects.TimerArray;
 
 /**
  *

@@ -7,7 +7,9 @@
  */
 
 
-package nl.das.terraria.objects;
+package nl.das.terraria.rest;
+
+import nl.das.terraria.objects.Timer;
 
 /**
  *
@@ -15,6 +17,8 @@ package nl.das.terraria.objects;
 public class TimerArray {
 
 	private Timer[] timers;
+
+	public TimerArray() { }
 
 	public TimerArray(Timer[] timers) {
 		this.timers = timers;

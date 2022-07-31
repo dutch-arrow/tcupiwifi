@@ -627,7 +627,6 @@ public class Terrarium {
 	 */
 	@JsonbTransient
 	public void setDeviceOn(String device, long endtime) {
-		System.out.println("Device '" + device + " is switched on");
 		Terrarium.devices[getDeviceIndex(device)].switchOn();
 		Terrarium.devStates[getDeviceIndex(device)].setOnPeriod(endtime);
 		if (endtime > 0L) {
@@ -640,7 +639,6 @@ public class Terrarium {
 
 	@JsonbTransient
 	public void setDeviceOff(String device) {
-		System.out.println("Device '" + device + " is switched off");
 		Terrarium.devices[getDeviceIndex(device)].switchOff();
 		Terrarium.devStates[getDeviceIndex(device)].setOnPeriod(ONPERIOD_OFF);
 		Util.traceState(traceFolder + "/" + traceStateFilename, this.now, "%s 0", device);

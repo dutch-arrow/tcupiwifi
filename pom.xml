@@ -3,12 +3,12 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>nl.das</groupId>
-	<artifactId>nl.das.terrariumpi</artifactId>
+	<artifactId>nl.das.tcupiwifi</artifactId>
 	<version>1.0.0</version>
 
 	<properties>
-		<main.class>nl.das.terrariumpi.TCU</main.class>
-		<progName>tcu</progName>
+		<main.class>nl.das.terraria.TCU</main.class>
+		<progName>tcuwifi</progName>
 	</properties>
 
 	<dependencies>

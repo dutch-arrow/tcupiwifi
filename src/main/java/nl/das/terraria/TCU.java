@@ -17,16 +17,12 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import nl.das.terraria.hw.LCD;
 import nl.das.terraria.objects.Terrarium;
 import nl.das.terraria.rest.RestServer;
 
 public class TCU {
 
-	private static Logger log = LoggerFactory.getLogger(TCU.class);
 	private static DateTimeFormatter dtfmt = DateTimeFormatter.ofPattern("HH:mm:ss");
 
 	private static RestServer server;
@@ -65,10 +61,14 @@ public class TCU {
 		// Retrieve the lifecycle values from disk
 		try {
 			String json = new String(Files.readAllBytes(Paths.get("lifecycle.txt")));
-			String lns[] = json.split("\n");
-			for (String ln : lns) {
-				String lp[] = ln.split("=");
-				terrarium.setDeviceLifecycle(lp[0], Integer.parseInt(lp[1]));
+			if (json != null) {
+				String lns[] = json.split("\n");
+				for (String ln : lns) {
+					String lp[] = ln.split("=");
+					if (lp.length == 2) {
+						terrarium.setDeviceLifecycle(lp[0], Integer.parseInt(lp[1]));
+					}
+				}
 			}
 		} catch (NoSuchFileException e) {
 		} catch (IOException e) {

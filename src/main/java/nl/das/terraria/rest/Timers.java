@@ -40,7 +40,7 @@ public class Timers {
 	@PUT
     @Consumes("application/json")
 	public Response saveTimers(TimerArray timers) {
-		Terrarium.getInstance().setTimers(timers.getTimers());
+		Terrarium.getInstance().replaceTimers(timers.getTimers());
 		Terrarium.getInstance().saveSettings();
 		return Response.noContent().build();
 	}

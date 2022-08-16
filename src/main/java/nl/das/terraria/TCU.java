@@ -9,13 +9,13 @@
 package nl.das.terraria;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+
+import com.pi4j.system.NetworkInfo;
 
 import nl.das.terraria.hw.LCD;
 import nl.das.terraria.objects.Terrarium;
@@ -81,8 +81,12 @@ public class TCU {
 		lcd.displayLine1(troom, tterr);
 		String ip="";
 		try {
-			ip = InetAddress.getLocalHost().getHostAddress();
-		} catch (UnknownHostException e) {
+	        for (String ipAddress : NetworkInfo.getIPAddresses()) {
+	        	if (ipAddress.startsWith("192")) {
+	        		ip = ipAddress;
+	        	}
+	        }
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		lcd.write(1, ip);
@@ -113,9 +117,7 @@ public class TCU {
 					tterr = terrarium.getTerrariumTemperature();
 					troom = terrarium.getRoomTemperature();
 					lcd.displayLine1(troom, tterr);
-					if (!terrarium.isTraceOn()) {
-						Util.traceTemperature(Terrarium.traceFolder + "/" +  Terrarium.traceTempFilename, now, "r=%d t=%d", troom, tterr);
-					}
+					Util.traceTemperature(Terrarium.traceFolder + "/" +  Terrarium.traceTempFilename, now, "r=%d t=%d", troom, tterr);
 					// - check timers
 					terrarium.checkTimers();
 					// - check sprayerrule
